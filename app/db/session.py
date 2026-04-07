@@ -22,6 +22,8 @@ def _normalize_asyncpg_url(database_url: str) -> tuple[str, dict[str, Any]]:
     connect_args: dict[str, Any] = {}
 
     sslmode = query.pop("sslmode", None)
+    # asyncpg does not accept this psycopg-style argument when routed through SQLAlchemy URL query.
+    query.pop("channel_binding", None)
     if sslmode is not None and "ssl" not in query:
         normalized = str(sslmode).strip().lower()
         if normalized in {"disable", "allow"}:
