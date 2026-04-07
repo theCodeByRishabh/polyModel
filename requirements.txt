@@ -1,0 +1,13 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+sqlalchemy[asyncio]==2.0.43
+asyncpg==0.30.0
+pydantic-settings==2.11.0
+httpx==0.28.1
+pandas==2.3.2
+numpy==2.3.2
+xgboost==3.0.4
+scikit-learn==1.7.1
+joblib==1.5.1
+python-dotenv==1.1.1
+websockets==15.0.1
