@@ -13,7 +13,11 @@ def _normalize_asyncpg_url(database_url: str) -> tuple[str, dict[str, Any]]:
     asyncpg expects `ssl`, not `sslmode`.
     Railway/Neon URLs often include `?sslmode=require`; map that safely.
     """
-    url: URL = make_url(database_url)
+    normalized_input = database_url
+    if database_url.startswith("postgresql://"):
+        normalized_input = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    url: URL = make_url(normalized_input)
     query = dict(url.query)
     connect_args: dict[str, Any] = {}
 
