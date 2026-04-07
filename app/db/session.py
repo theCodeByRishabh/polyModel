@@ -1,17 +1,43 @@
 from __future__ import annotations
 
+from typing import Any
+
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import Settings
 
 
+def _normalize_asyncpg_url(database_url: str) -> tuple[str, dict[str, Any]]:
+    """
+    asyncpg expects `ssl`, not `sslmode`.
+    Railway/Neon URLs often include `?sslmode=require`; map that safely.
+    """
+    url: URL = make_url(database_url)
+    query = dict(url.query)
+    connect_args: dict[str, Any] = {}
+
+    sslmode = query.pop("sslmode", None)
+    if sslmode is not None and "ssl" not in query:
+        normalized = str(sslmode).strip().lower()
+        if normalized in {"disable", "allow"}:
+            connect_args["ssl"] = False
+        else:
+            # require / prefer / verify-ca / verify-full -> use TLS
+            connect_args["ssl"] = True
+
+    return str(url.set(query=query)), connect_args
+
+
 def build_engine(settings: Settings) -> AsyncEngine:
+    normalized_url, connect_args = _normalize_asyncpg_url(settings.database_url)
     return create_async_engine(
-        settings.database_url,
+        normalized_url,
         echo=False,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,
+        connect_args=connect_args,
     )
 
 
