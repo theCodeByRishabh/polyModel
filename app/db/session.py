@@ -32,7 +32,9 @@ def _normalize_asyncpg_url(database_url: str) -> tuple[str, dict[str, Any]]:
             # require / prefer / verify-ca / verify-full -> use TLS
             connect_args["ssl"] = True
 
-    return str(url.set(query=query)), connect_args
+    # NOTE: str(URL) hides password as ***; use explicit render to keep credentials.
+    normalized_url = url.set(query=query).render_as_string(hide_password=False)
+    return normalized_url, connect_args
 
 
 def build_engine(settings: Settings) -> AsyncEngine:
