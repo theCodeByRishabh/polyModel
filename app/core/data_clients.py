@@ -163,7 +163,9 @@ class PolymarketClient:
                 event = data[0]
                 markets = event.get("markets", [])
                 if isinstance(markets, list) and markets:
-                    return markets[0], f"{self._gamma_api}/events?slug={slug}"
+                    picked = self._pick_market_by_slug(markets, slug)
+                    if picked is not None:
+                        return picked, f"{self._gamma_api}/events?slug={slug}"
         except Exception as exc:
             errors.append(f"events -> {exc}")
 
@@ -176,7 +178,9 @@ class PolymarketClient:
             response.raise_for_status()
             data = response.json()
             if isinstance(data, list) and data:
-                return data[0], f"{self._gamma_api}/markets?slug={slug}"
+                picked = self._pick_market_by_slug(data, slug)
+                if picked is not None:
+                    return picked, f"{self._gamma_api}/markets?slug={slug}"
             if isinstance(data, dict):
                 record = self._extract_record(data)
                 if record is not None:
@@ -264,13 +268,7 @@ class PolymarketClient:
 
     def _extract_yes_token_id(self, record: dict[str, Any]) -> str | None:
         clob_ids = self._parse_json_or_csv(record.get("clobTokenIds"))
-        outcomes = [str(o).strip().strip('"').strip("'").lower() for o in self._parse_json_or_csv(record.get("outcomes"))]
-
-        yes_idx = 0
-        for idx, outcome in enumerate(outcomes):
-            if outcome in {"up", "yes", "true"}:
-                yes_idx = idx
-                break
+        yes_idx = self._yes_outcome_index(record)
         if clob_ids and len(clob_ids) > yes_idx:
             return str(clob_ids[yes_idx])
 
@@ -293,15 +291,16 @@ class PolymarketClient:
         if direct is not None:
             return direct
 
+        yes_idx = self._yes_outcome_index(record)
         outcome_prices = self._parse_json_or_csv(record.get("outcomePrices"))
-        if outcome_prices:
-            value = self._safe_float(outcome_prices[0])
+        if outcome_prices and len(outcome_prices) > yes_idx:
+            value = self._safe_float(outcome_prices[yes_idx])
             if value is not None:
                 return value
 
         token_prices = self._parse_json_or_csv(record.get("tokenPrices"))
-        if token_prices:
-            value = self._safe_float(token_prices[0])
+        if token_prices and len(token_prices) > yes_idx:
+            value = self._safe_float(token_prices[yes_idx])
             if value is not None:
                 return value
 
@@ -343,12 +342,27 @@ class PolymarketClient:
                         return str(token_id) == str(yes_token_id)
 
         if resolved:
+            yes_idx = self._yes_outcome_index(record)
             outcome_prices = self._parse_json_or_csv(record.get("outcomePrices"))
-            if len(outcome_prices) >= 2:
-                p0 = self._safe_float(outcome_prices[0])
-                p1 = self._safe_float(outcome_prices[1])
-                if p0 is not None and p1 is not None and p0 != p1:
-                    return p0 > p1
+            if len(outcome_prices) > yes_idx:
+                yes_price = self._safe_float(outcome_prices[yes_idx])
+                if yes_price is None:
+                    return None
+
+                other_prices: list[float] = []
+                for i, v in enumerate(outcome_prices):
+                    if i == yes_idx:
+                        continue
+                    parsed = self._safe_float(v)
+                    if parsed is not None:
+                        other_prices.append(parsed)
+                if not other_prices:
+                    return None
+                max_other = max(other_prices)
+                if yes_price > max_other:
+                    return True
+                if yes_price < max_other:
+                    return False
         return None
 
     def _parse_outcome_value(self, value: Any, yes_token_id: str | None) -> bool | None:
@@ -415,6 +429,38 @@ class PolymarketClient:
                 return markets[0] if markets else None
             return payload
         return None
+
+    def _pick_market_by_slug(self, markets: list[Any], slug: str) -> dict[str, Any] | None:
+        normalized_slug = str(slug).strip().lower()
+        for market in markets:
+            if not isinstance(market, dict):
+                continue
+            market_slug = str(market.get("slug", "")).strip().lower()
+            if market_slug == normalized_slug:
+                return market
+
+        # Fall back to first dict-like market if exact slug is unavailable.
+        for market in markets:
+            if isinstance(market, dict):
+                return market
+        return None
+
+    def _yes_outcome_index(self, record: dict[str, Any]) -> int:
+        outcomes = [str(o).strip().strip('"').strip("'").lower() for o in self._parse_json_or_csv(record.get("outcomes"))]
+        for idx, outcome in enumerate(outcomes):
+            if outcome in {"up", "yes", "true"}:
+                return idx
+
+        tokens = record.get("tokens")
+        if isinstance(tokens, list):
+            for idx, token in enumerate(tokens):
+                if not isinstance(token, dict):
+                    continue
+                outcome = str(token.get("outcome", "")).strip().lower()
+                if outcome in {"up", "yes", "true"}:
+                    return idx
+
+        return 0
 
     @staticmethod
     def _extract_float(record: dict[str, Any], keys: list[str]) -> float | None:

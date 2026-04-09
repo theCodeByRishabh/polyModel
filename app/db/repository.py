@@ -380,6 +380,20 @@ class Repository:
                 {"keep_raw_hours": keep_raw_hours},
             )
 
+            # Keep unresolved raw observations bounded as well to avoid unbounded growth
+            # when external resolution fields are missing for stale markets.
+            delete_unresolved_stale = await session.execute(
+                text(
+                    """
+                    DELETE FROM observations
+                    WHERE
+                      timestamp < (NOW() - make_interval(days => :keep_aggregated_days))
+                      AND resolved = FALSE
+                    """
+                ),
+                {"keep_aggregated_days": keep_aggregated_days},
+            )
+
             delete_agg = await session.execute(
                 text(
                     """
@@ -399,7 +413,7 @@ class Repository:
                 current_size = await self.get_database_size_mb(session)
 
             return {
-                "deleted_observations": int(delete_resolved.rowcount or 0),
+                "deleted_observations": int((delete_resolved.rowcount or 0) + (delete_unresolved_stale.rowcount or 0)),
                 "deleted_aggregates": int(delete_agg.rowcount or 0),
                 "database_size_mb": current_size,
                 "emergency_deleted": emergency_deleted,

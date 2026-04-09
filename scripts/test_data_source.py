@@ -7,6 +7,7 @@ from dataclasses import asdict
 
 from app.config import get_settings
 from app.core.data_clients import PolymarketClient
+from app.core.market_slug import resolve_market_slug
 
 
 async def main() -> int:
@@ -16,7 +17,7 @@ async def main() -> int:
     await market_client.start()
     try:
         await asyncio.sleep(2)
-        market_result = await market_client.fetch_market(settings.market_slug)
+        market_result = await market_client.fetch_market(resolve_market_slug(settings.market_slug))
         print("Polymarket source: OK")
         print(json.dumps(asdict(market_result), indent=2, default=str))
         print("BTC proxy feed status:")

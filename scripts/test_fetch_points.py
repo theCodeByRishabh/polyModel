@@ -24,6 +24,8 @@ class MockBackend:
             token_id = query.get("token_id", "")
             if self.mode == "book_fail":
                 return Response(503, json={"error": "book unavailable"})
+            if self.mode == "events_reversed_outcomes":
+                return Response(404, json={"error": "book unavailable for reversed-outcome case"})
             if token_id:
                 return Response(
                     200,
@@ -37,6 +39,55 @@ class MockBackend:
         if path == "/events":
             if self.mode in {"markets_fallback", "template_fallback"}:
                 return Response(500, json={"error": "events unavailable"})
+
+            if self.mode == "events_multi":
+                return Response(
+                    200,
+                    json=[
+                        {
+                            "slug": "btc-updown-5m-test",
+                            "markets": [
+                                {
+                                    "slug": "some-other-market",
+                                    "endDate": "2099-01-01T00:05:00Z",
+                                    "clobTokenIds": '["333","444"]',
+                                    "outcomes": '["Up","Down"]',
+                                    "active": True,
+                                    "outcomePrices": '["0.11","0.89"]',
+                                },
+                                {
+                                    "slug": "btc-updown-5m-test",
+                                    "endDate": "2099-01-01T00:05:00Z",
+                                    "clobTokenIds": '["111","222"]',
+                                    "outcomes": '["Up","Down"]',
+                                    "active": True,
+                                    "outcomePrices": '["0.94","0.06"]',
+                                },
+                            ],
+                        }
+                    ],
+                )
+
+            if self.mode == "events_reversed_outcomes":
+                return Response(
+                    200,
+                    json=[
+                        {
+                            "slug": "btc-updown-5m-test",
+                            "markets": [
+                                {
+                                    "slug": "btc-updown-5m-test",
+                                    "endDate": "2099-01-01T00:05:00Z",
+                                    "clobTokenIds": '["111","222"]',
+                                    "outcomes": '["Down","Up"]',
+                                    "active": True,
+                                    "outcomePrices": '["0.94","0.06"]',
+                                }
+                            ],
+                        }
+                    ],
+                )
+
             return Response(
                 200,
                 json=[
@@ -118,7 +169,7 @@ def build_settings() -> Settings:
     )
 
 
-async def run_case(mode: str, expected_source_contains: str) -> tuple[bool, str]:
+async def run_case(mode: str, expected_source_contains: str, expected_price: float | None = None) -> tuple[bool, str]:
     settings = build_settings()
     backend = MockBackend(mode)
     client = PolymarketClient(settings)
@@ -139,9 +190,11 @@ async def run_case(mode: str, expected_source_contains: str) -> tuple[bool, str]
             snapshot.btc_reference_price > 1000,
             feed_status.get("latest_price") is not None,
         ]
+        if expected_price is not None:
+            checks.append(abs(snapshot.price - expected_price) < 1e-9)
         passed = all(checks)
         message = (
-            f"mode={mode} source={snapshot.source} ask={snapshot.ask:.4f} "
+            f"mode={mode} source={snapshot.source} price={snapshot.price:.4f} ask={snapshot.ask:.4f} "
             f"bid={snapshot.bid:.4f} btc_ref={snapshot.btc_reference_price:.2f}"
         )
         return passed, message
@@ -153,14 +206,16 @@ async def run_case(mode: str, expected_source_contains: str) -> tuple[bool, str]
 
 async def main() -> int:
     scenarios = [
-        ("events_success", "/events"),
-        ("markets_fallback", "/markets"),
-        ("template_fallback", "/fallback/"),
+        ("events_success", "/events", None),
+        ("events_multi", "/events", None),
+        ("events_reversed_outcomes", "/events", 0.06),
+        ("markets_fallback", "/markets", None),
+        ("template_fallback", "/fallback/", None),
     ]
 
     ok = True
-    for mode, expected in scenarios:
-        passed, info = await run_case(mode, expected)
+    for mode, expected, expected_price in scenarios:
+        passed, info = await run_case(mode, expected, expected_price=expected_price)
         print(f"[{'PASS' if passed else 'FAIL'}] {info}")
         ok = ok and passed
     return 0 if ok else 1
