@@ -6,10 +6,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 
 from app.config import Settings, get_settings
 from app.core.cleanup import CleanupEngine
 from app.core.data_clients import PolymarketClient
+from app.dashboard import render_dashboard_html
 from app.core.feature_engine import FeatureEngine
 from app.core.learning_engine import LearningEngine
 from app.core.meta_engine import MetaEngine
@@ -96,6 +98,16 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root() -> HTMLResponse:
+    return HTMLResponse(content=render_dashboard_html())
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page() -> HTMLResponse:
+    return HTMLResponse(content=render_dashboard_html())
 
 
 @app.get("/health")
