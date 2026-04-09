@@ -115,6 +115,7 @@ async def health(request: Request) -> dict[str, Any]:
     container = _get_container(request)
     db_ok = await container.repository.healthcheck()
     runtime = container.pipeline.health()
+    runtime["resolved_count"] = await container.repository.get_resolved_count()
     status = "ok" if db_ok else "degraded"
     return {"status": status, "db_ok": db_ok, "runtime": runtime}
 

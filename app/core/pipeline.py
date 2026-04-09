@@ -219,6 +219,8 @@ class PredictionPipeline:
             "mode": self.state.mode,
             "started_at": self.state.started_at.isoformat(),
             "market_slug": resolve_market_slug(self._settings.market_slug),
+            "model_loaded": self._ml_engine.is_loaded(),
+            "meta_model_loaded": self._meta_engine.is_loaded(),
             "last_observation_at": self.state.last_observation_at.isoformat()
             if self.state.last_observation_at
             else None,

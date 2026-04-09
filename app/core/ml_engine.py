@@ -71,6 +71,9 @@ class MLEngine:
         decision = bool(prob > 0.8 and expected_value > 0.0)
         return decision, prob, expected_value
 
+    def is_loaded(self) -> bool:
+        return self.model is not None
+
     def train(self, training_rows: list[dict[str, Any]], window_size: int = 5000) -> bool:
         if len(training_rows) < 600:
             logger.info("Skipping ML train: need >= 600 resolved rows, got %d", len(training_rows))

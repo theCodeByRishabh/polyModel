@@ -84,6 +84,9 @@ class MetaEngine:
             return "rule", prob_meta
         return "skip", prob_meta
 
+    def is_loaded(self) -> bool:
+        return self.model is not None
+
     def train(self, training_rows: list[dict[str, Any]], min_rows: int = 200) -> bool:
         if len(training_rows) < min_rows:
             logger.info("Skipping meta train: need >= %d resolved rows, got %d", min_rows, len(training_rows))

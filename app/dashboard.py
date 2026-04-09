@@ -196,6 +196,19 @@ def render_dashboard_html() -> str:
       </div>
 
       <div class="panel">
+        <div class="stat-label">Resolved Count</div>
+        <div id="resolved_count" class="stat-value">0</div>
+      </div>
+      <div class="panel">
+        <div class="stat-label">ML Model</div>
+        <div id="model_loaded" class="status-pill warn">loading</div>
+      </div>
+      <div class="panel">
+        <div class="stat-label">Meta Model</div>
+        <div id="meta_model_loaded" class="status-pill warn">loading</div>
+      </div>
+
+      <div class="panel">
         <div class="stat-label">Total Trades</div>
         <div id="total_trades" class="stat-value">0</div>
       </div>
@@ -323,6 +336,17 @@ def render_dashboard_html() -> str:
         setPill("db_status", health.db_ok ? "connected" : "disconnected", health.db_ok ? "ok" : "bad");
         el("runtime_mode").textContent = health.runtime?.mode || "-";
         el("last_obs").textContent = fmtTs(health.runtime?.last_observation_at);
+        el("resolved_count").textContent = String(health.runtime?.resolved_count ?? 0);
+        setPill(
+          "model_loaded",
+          health.runtime?.model_loaded ? "loaded" : "not loaded",
+          health.runtime?.model_loaded ? "ok" : "warn"
+        );
+        setPill(
+          "meta_model_loaded",
+          health.runtime?.meta_model_loaded ? "loaded" : "not loaded",
+          health.runtime?.meta_model_loaded ? "ok" : "warn"
+        );
 
         el("total_trades").textContent = String(stats.total_trades ?? 0);
         el("ev").textContent = fmtNum(stats.ev);
