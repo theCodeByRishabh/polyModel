@@ -41,7 +41,8 @@ class OutcomeTracker:
 
         for slug in ordered_slugs:
             try:
-                snapshot = await self._market_client.fetch_market(slug)
+                # Outcome checks only need status/result, not live orderbook data.
+                snapshot = await self._market_client.fetch_market(slug, include_orderbook=False)
             except DataSourceError as exc:
                 if slug == active_slug:
                     logger.warning("Outcome tracker skipped active slug (%s): %s", slug, exc)

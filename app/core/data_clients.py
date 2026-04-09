@@ -78,9 +78,14 @@ class PolymarketClient:
             self._btc_task = None
         await self._http.aclose()
 
-    async def fetch_market(self, market_slug: str) -> MarketSnapshot:
+    async def fetch_market(self, market_slug: str, include_orderbook: bool = True) -> MarketSnapshot:
         record, source = await self._fetch_raw_market_record(market_slug)
-        snapshot = await self._build_market_snapshot(record, market_slug, source)
+        snapshot = await self._build_market_snapshot(
+            record,
+            market_slug,
+            source,
+            include_orderbook=include_orderbook,
+        )
 
         proxy_slug = self._settings.btc_reference_market_slug.strip()
         if proxy_slug and proxy_slug != market_slug and self._latest_btc_price is None:
@@ -206,9 +211,10 @@ class PolymarketClient:
         record: dict[str, Any],
         market_slug: str,
         source: str,
+        include_orderbook: bool = True,
     ) -> MarketSnapshot:
         yes_token_id = self._extract_yes_token_id(record)
-        book = await self._fetch_orderbook(yes_token_id) if yes_token_id else {}
+        book = await self._fetch_orderbook(yes_token_id) if yes_token_id and include_orderbook else {}
 
         bids = book.get("bids", []) if isinstance(book, dict) else []
         asks = book.get("asks", []) if isinstance(book, dict) else []

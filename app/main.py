@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse
 
 from app.config import Settings, get_settings
@@ -108,6 +108,11 @@ async def root() -> HTMLResponse:
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page() -> HTMLResponse:
     return HTMLResponse(content=render_dashboard_html())
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    return Response(status_code=204)
 
 
 @app.get("/health")
