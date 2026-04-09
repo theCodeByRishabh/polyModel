@@ -11,6 +11,7 @@ from app.core.cleanup import CleanupEngine
 from app.core.data_clients import DataSourceError, PolymarketClient
 from app.core.feature_engine import FeatureEngine
 from app.core.learning_engine import LearningEngine
+from app.core.market_slug import resolve_market_slug
 from app.core.meta_engine import MetaEngine
 from app.core.ml_engine import MLEngine
 from app.core.outcome_tracker import OutcomeTracker
@@ -82,7 +83,8 @@ class PredictionPipeline:
     async def _observation_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
-                market_snapshot = await self._market_client.fetch_market(self._settings.market_slug)
+                active_slug = resolve_market_slug(self._settings.market_slug)
+                market_snapshot = await self._market_client.fetch_market(active_slug)
 
                 if market_snapshot.resolved and market_snapshot.outcome is not None:
                     await self._repository.mark_market_resolved(
@@ -216,6 +218,7 @@ class PredictionPipeline:
         return {
             "mode": self.state.mode,
             "started_at": self.state.started_at.isoformat(),
+            "market_slug": resolve_market_slug(self._settings.market_slug),
             "last_observation_at": self.state.last_observation_at.isoformat()
             if self.state.last_observation_at
             else None,

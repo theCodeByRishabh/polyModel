@@ -46,6 +46,11 @@ polyModel/
 - `shadow`: simulate decisions, no retraining
 - `learning`: full retraining + rule updates + meta updates
 
+`MARKET_SLUG` can be a fixed slug or a template:
+
+- Fixed: `btc-updown-5m-1744214400`
+- Dynamic template: `btc-updown-5m-<WINDOW_START_TS>`
+
 ## Quickstart
 
 1. Create `.env` from `.env.example`.

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 from app.core.data_clients import DataSourceError, PolymarketClient
+from app.core.market_slug import resolve_market_slug
 from app.db.repository import Repository
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,8 @@ class OutcomeTracker:
 
     async def check_and_update(self) -> OutcomeUpdateResult:
         try:
-            snapshot = await self._market_client.fetch_market(self._market_slug)
+            active_slug = resolve_market_slug(self._market_slug)
+            snapshot = await self._market_client.fetch_market(active_slug)
         except DataSourceError as exc:
             logger.warning("Outcome tracker skipped: %s", exc)
             return OutcomeUpdateResult(resolved=False, updated_rows=0, outcome=None, source=None)
