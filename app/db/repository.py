@@ -93,6 +93,19 @@ class Repository:
             )
             return int(value or 0)
 
+    async def get_unresolved_market_slugs(self, limit: int = 25) -> list[str]:
+        async with self._session_factory() as session:
+            rows = (
+                await session.execute(
+                    select(Observation.market_slug)
+                    .where(Observation.resolved.is_(False))
+                    .group_by(Observation.market_slug)
+                    .order_by(desc(func.max(Observation.timestamp)))
+                    .limit(limit)
+                )
+            ).scalars().all()
+            return [str(slug) for slug in rows if slug]
+
     async def get_training_rows(self, limit: int = 6000) -> list[dict[str, Any]]:
         async with self._session_factory() as session:
             rows = (
